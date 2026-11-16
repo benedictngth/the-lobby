@@ -26,6 +26,7 @@ The user's product direction is to scope parties to a targeted area (for example
 
 ## Views and boundaries
 
+- **Demo start:** offers **Guided walkthrough** or **Explore freely**.
 - **Area Lobby:** area selector and active party list.
 - **Party setup:** area, name, place, time, review, and start.
 - **Party details:** meetup details, attendee statuses, estimates, and status actions.
@@ -34,11 +35,17 @@ The user's product direction is to scope parties to a targeted area (for example
 
 The visual priority is the party list, the setup and join actions, and the status/commute display. Profiles, group settings, notification preferences, chat, time polls, calendar integration, and live maps or GPS are out of scope. The interface should work at mobile and desktop widths; status must use text as well as color, and primary actions must be keyboard accessible.
 
+## Self-guided exploration
+
+The prototype supports both moderated sessions and independent use. **Guided walkthrough** presents the Quick Pairing scenario as short, skippable prompts while the participant performs the interactions. **Explore freely** opens the Area Lobby without prompts so a visitor can browse parties and try setup, joining, and status changes at their own pace.
+
+Both modes use the same seeded sample areas and residents. A clearly labeled demo control lets an independent user switch between the host and a second resident, and reset sample data to its initial state. The role switch and reset are demonstration controls, not product features. No signup, facilitator, or real second device is required to explore the complete flow.
+
 ## Prototype behavior and data
 
 Use a small set of realistic sample areas, residents, places, parties, statuses, and commute estimates. The browser is the only runtime dependency; no account system, server, or external service is needed. Store the prototype's party and status state in browser storage so an Open party remains after navigation or refresh on the same device.
 
-Because browser storage cannot synchronize real users across devices, moderated demonstrations should support a host and a second resident as separate local test roles. This is a prototype/testing aid, not a user-facing account feature. The implementation should clearly present simulated commute estimates and should not imply GPS accuracy.
+Because browser storage cannot synchronize real users across devices, sessions use a host and a second resident as separate local test roles. This supports both moderated demonstrations and independent exploration; it is a prototype/testing aid, not a user-facing account feature. The implementation should clearly present simulated commute estimates and should not imply GPS accuracy.
 
 Validate required fields and ensure the party time is in the future. Show errors beside the relevant fields, preserve entered values on validation failure, prevent duplicate joins, and make ended parties non-joinable. Give immediate confirmation after starting, joining, or changing status. No loading state is needed for the local sample data.
 
