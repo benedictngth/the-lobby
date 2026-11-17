@@ -76,7 +76,10 @@ function renderPartyCard(state, party, areaName) {
     ? `Estimate: ${resident.etaMinutes} min commute`
     : 'Estimate unavailable';
 
-  article.append(title, details, el('p', 'party-estimate', estimate));
+  const open = actionButton('open-party', 'View details');
+  open.dataset.partyId = party.id;
+
+  article.append(title, details, el('p', 'party-estimate', estimate), open);
   return article;
 }
 
@@ -97,7 +100,7 @@ export function renderDemoStart() {
   return fragment;
 }
 
-export function renderAreaLobby(state) {
+export function renderAreaLobby(state, ui) {
   const fragment = document.createDocumentFragment();
   const heading = el('h1', null, 'Area lobby');
   heading.tabIndex = -1;
@@ -114,6 +117,29 @@ export function renderAreaLobby(state) {
   const areaSelect = selectArea(state, 'area-select', 'filter-area');
   controls.append(areaLabel, areaSelect);
 
+  // Demo-only control: switching who you are must not touch the party data.
+  const demoControls = el('div', 'demo-controls');
+  const roleLabel = el('label', null, 'Demo role');
+  roleLabel.htmlFor = 'role-select';
+  const roleSelect = el('select');
+  roleSelect.id = 'role-select';
+  roleSelect.name = 'role';
+  roleSelect.dataset.action = 'switch-role';
+  roleSelect.setAttribute('aria-describedby', 'role-hint');
+  for (const resident of state.residents) {
+    const option = el('option', null, resident.name);
+    option.value = resident.id;
+    option.selected = resident.id === state.currentResidentId;
+    roleSelect.append(option);
+  }
+  const roleHint = el(
+    'p',
+    'demo-hint',
+    'Demo control: switches which resident you are on this device. Party data does not change.',
+  );
+  roleHint.id = 'role-hint';
+  demoControls.append(roleLabel, roleSelect, roleHint);
+
   const parties = state.parties.filter(
     (party) => party.areaId === areaId && party.status === 'Open',
   );
@@ -126,11 +152,11 @@ export function renderAreaLobby(state) {
     for (const party of parties) list.append(renderPartyCard(state, party, areaName));
   }
 
-  fragment.append(controls, actionButton('start-party', 'Start a Party'), list);
+  fragment.append(controls, demoControls, actionButton('start-party', 'Start a Party'), list);
   return fragment;
 }
 
-export function renderPartySetup(state) {
+export function renderPartySetup(state, ui) {
   const fragment = document.createDocumentFragment();
   const heading = el('h1', null, 'Start a party');
   heading.id = 'party-setup-heading';
@@ -176,5 +202,85 @@ export function renderPartySetup(state) {
   form.append(actions);
 
   fragment.append(form);
+  return fragment;
+}
+
+export function renderPartyDetails(state, partyId, ui) {
+  const fragment = document.createDocumentFragment();
+  const party = state.parties.find((item) => item.id === partyId);
+  const heading = el('h1', null, party ? party.name : 'Party unavailable');
+  heading.tabIndex = -1;
+  fragment.append(heading);
+
+  if (!party) {
+    fragment.append(
+      el('p', null, 'This party is no longer available.'),
+      actionButton('back-to-lobby', 'Back to lobby'),
+    );
+    return fragment;
+  }
+
+  const areaName = state.areas.find((area) => area.id === party.areaId)?.name ?? 'Unknown area';
+  const host = state.residents.find((resident) => resident.id === party.hostId);
+  const resident = state.residents.find((item) => item.id === state.currentResidentId);
+  const attendee = party.attendees.find((item) => item.residentId === state.currentResidentId);
+
+  const details = el('dl', 'party-details');
+  appendDetail(details, 'Area', areaName);
+  appendDetail(details, 'Place', party.place);
+  appendDetail(details, 'Time', formatWallClock(party.startsAt));
+  appendDetail(details, 'Status', party.status);
+  appendDetail(details, 'Host', host?.name ?? 'Unknown resident');
+  fragment.append(details);
+
+  if (party.status === 'Ended') {
+    fragment.append(el('p', 'party-ended', 'This party has ended.'));
+  } else if (attendee) {
+    fragment.append(el('p', null, "You're attending this party."));
+  } else if (!resident || resident.areaId !== party.areaId) {
+    fragment.append(
+      el(
+        'p',
+        'party-outside-area',
+        `This party is in ${areaName}, outside your area, so you can't join it.`,
+      ),
+    );
+  } else {
+    const estimate = Number.isFinite(resident.etaMinutes)
+      ? `Estimate: ${resident.etaMinutes} min commute from ${areaName}`
+      : 'Estimate unavailable';
+    fragment.append(el('p', 'party-estimate', estimate));
+
+    const join = actionButton('join-party', 'Join party');
+    join.dataset.partyId = party.id;
+    fragment.append(join);
+  }
+
+  if (party.status === 'Open' && attendee) {
+    const controls = el('div', 'status-controls');
+    controls.setAttribute('role', 'group');
+    controls.setAttribute('aria-label', 'Your status');
+    controls.append(el('p', null, 'Your status'));
+    for (const value of ['In', 'On the way', 'Here']) {
+      const button = actionButton('set-status', value);
+      button.dataset.status = value;
+      controls.append(button);
+    }
+    fragment.append(controls);
+  }
+
+  const list = el('ul', 'attendee-list');
+  list.setAttribute('aria-label', 'Attendees');
+  for (const item of party.attendees) {
+    const name = state.residents.find((entry) => entry.id === item.residentId)?.name ?? 'Unknown resident';
+    // The ETA only exists while a resident is On the way, and stays readable in text.
+    const eta =
+      item.status === 'On the way' && Number.isFinite(item.etaMinutes)
+        ? ` — ETA ${item.etaMinutes} min`
+        : '';
+    list.append(el('li', null, `${name} — ${item.status}${eta}`));
+  }
+
+  fragment.append(el('h2', null, 'Attendees'), list, actionButton('back-to-lobby', 'Back to lobby'));
   return fragment;
 }

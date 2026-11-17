@@ -39,6 +39,41 @@ select {
   font-weight: 600;
 }
 
+.demo-controls {
+  margin-block: 1rem;
+}
+
+.demo-controls label {
+  display: block;
+  font-weight: 600;
+}
+
+.demo-hint {
+  font-size: 0.9rem;
+  margin: 0.25rem 0 0;
+}
+
+.status-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block: 1rem;
+}
+
+.status-controls p {
+  font-weight: 600;
+  margin: 0;
+}
+
+.attendee-list {
+  margin-block: 0.5rem 1rem;
+}
+
+.party-ended {
+  font-weight: 600;
+}
+
 .party-list {
   display: grid;
   gap: 1rem;

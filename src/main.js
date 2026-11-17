@@ -1,6 +1,17 @@
-import { createParty, validatePartyInput } from './domain.js';
+import {
+  createParty,
+  joinParty,
+  updatePartyLifecycle,
+  updateStatus,
+  validatePartyInput,
+} from './domain.js';
 import { loadState, saveState } from './storage.js';
-import { renderAreaLobby, renderDemoStart, renderPartySetup } from './views.js';
+import {
+  renderAreaLobby,
+  renderDemoStart,
+  renderPartyDetails,
+  renderPartySetup,
+} from './views.js';
 
 const root = document.querySelector('#app');
 
@@ -35,6 +46,7 @@ function render() {
   let fragment;
   if (ui.screen === 'area-lobby') fragment = renderAreaLobby(state, ui);
   else if (ui.screen === 'party-setup') fragment = renderPartySetup(state, ui);
+  else if (ui.screen === 'party-details') fragment = renderPartyDetails(state, ui.activePartyId, ui);
   else fragment = renderDemoStart();
 
   root.replaceChildren(fragment, status);
@@ -49,6 +61,33 @@ function persist(nextState) {
   state = nextState;
   warning = saveState(state).warning;
   return state;
+}
+
+function lifecycleNotice(previous, next) {
+  const ended = next.parties.filter((party) => {
+    const before = previous.parties.find((item) => item.id === party.id);
+    return before?.status === 'Open' && party.status === 'Ended';
+  });
+
+  if (ended.length === 1) return `Party "${ended[0].name}" has ended.`;
+  if (ended.length > 1) return `${ended.length} parties have ended.`;
+  return '';
+}
+
+// Runs the lifecycle rules now and reports the announcement text, if anything changed.
+function advanceLifecycle() {
+  const next = updatePartyLifecycle(state);
+  if (next === state) return '';
+  const message = lifecycleNotice(state, next);
+  persist(next);
+  return message;
+}
+
+function refreshLifecycle() {
+  const message = advanceLifecycle();
+  if (!message) return;
+  notice = message;
+  render();
 }
 
 function readSetupValues(form) {
@@ -89,18 +128,66 @@ root.addEventListener('click', (event) => {
     dirtyFields.clear();
     ui.screen = 'party-setup';
     render();
+  } else if (action === 'open-party') {
+    notice = '';
+    ui.activePartyId = event.target.closest('[data-party-id]')?.dataset.partyId ?? null;
+    ui.screen = 'party-details';
+    render();
+    root.querySelector('h1')?.focus();
+  } else if (action === 'join-party') {
+    const party = state.parties.find((item) => item.id === ui.activePartyId);
+    const { state: nextState, result } = joinParty(
+      state,
+      ui.activePartyId,
+      state.currentResidentId,
+    );
+
+    if (result === 'joined') {
+      persist(nextState);
+      notice = `You joined "${party.name}".`;
+    } else if (result === 'already-joined') {
+      notice = 'You are already attending this party.';
+    } else if (result === 'wrong-area') {
+      notice = "This party is outside your area, so you can't join it.";
+    } else {
+      notice = 'This party has ended.';
+    }
+
+    advanceLifecycle();
+    render();
+    root.querySelector('h1')?.focus();
+  } else if (action === 'set-status') {
+    const value = event.target.closest('[data-status]')?.dataset.status;
+    persist(updateStatus(state, ui.activePartyId, state.currentResidentId, value));
+    const ended = advanceLifecycle();
+    notice = `Status set to ${value}.${ended ? ` ${ended}` : ''}`;
+    render();
+    root.querySelector('h1')?.focus();
   } else if (action === 'back-to-lobby') {
     notice = '';
+    ui.activePartyId = null;
     ui.screen = 'area-lobby';
     render();
+    root.querySelector('h1')?.focus();
   }
 });
 
 root.addEventListener('change', (event) => {
-  if (event.target.dataset.action !== 'filter-area') return;
-  state = { ...state, selectedAreaId: event.target.value };
-  render();
-  root.querySelector('#area-select')?.focus();
+  const action = event.target.dataset.action;
+
+  if (action === 'filter-area') {
+    state = { ...state, selectedAreaId: event.target.value };
+    render();
+    root.querySelector('#area-select')?.focus();
+  } else if (action === 'switch-role') {
+    const resident = state.residents.find((item) => item.id === event.target.value);
+    persist({ ...state, currentResidentId: event.target.value });
+    notice = `Demo role: now acting as ${resident?.name ?? 'the selected resident'}.`;
+    ui.activePartyId = null;
+    ui.screen = 'area-lobby';
+    render();
+    root.querySelector('#role-select')?.focus();
+  }
 });
 
 root.addEventListener('input', (event) => {
@@ -146,5 +233,14 @@ root.addEventListener('submit', (event) => {
   render();
   root.querySelector('h1')?.focus();
 });
+
+// Lifecycle runs at startup, when the page becomes visible, and once a minute while open.
+const startupLifecycle = advanceLifecycle();
+if (startupLifecycle) notice = startupLifecycle;
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshLifecycle();
+});
+setInterval(refreshLifecycle, 60_000);
 
 render();
