@@ -15,8 +15,95 @@ button {
   padding: 0.5rem 1rem;
 }
 
-.demo-start-actions {
+input,
+select {
+  font: inherit;
+  max-width: 100%;
+  padding: 0.5rem;
+}
+
+.demo-start-actions,
+.area-controls,
+.form-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+  margin-block: 1rem;
+}
+
+.area-controls {
+  align-items: center;
+}
+
+.area-controls label {
+  font-weight: 600;
+}
+
+.party-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.party-card {
+  border: 1px solid #767676;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.party-card h2 {
+  margin-block-start: 0;
+}
+
+.party-details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0;
+}
+
+.party-details dt {
+  font-weight: 600;
+}
+
+.party-details dd {
+  margin: 0;
+}
+
+.party-estimate,
+.empty-state {
+  margin-block-end: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-block-end: 1rem;
+}
+
+.field label {
+  font-weight: 600;
+}
+
+.field-error {
+  color: #b3261e;
+  font-size: 0.9rem;
+  margin: 0;
+  min-height: 1.4em;
+}
+
+[aria-invalid='true'] {
+  border-color: #b3261e;
+  border-width: 2px;
+}
+
+.app-status {
+  background: #f5f5f5;
+  border-radius: 0.25rem;
+  margin-block-start: 1.5rem;
+  padding: 0.5rem 1rem;
+}
+
+.app-status:empty {
+  display: none;
 }
