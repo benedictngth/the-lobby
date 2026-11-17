@@ -12,4 +12,4 @@ The prototype is planned as a responsive website using sample data. Calendar, no
 
 ## Design
 
-The interaction design and usability goals are documented in [the frontend prototype spec](docs/superpowers/specs/2026-11-16-the-lobby-frontend-prototype-design.md). The spec is awaiting the user's review before implementation planning begins.
+The approved interaction design and usability goals are in [the frontend prototype spec](docs/superpowers/specs/2026-11-16-the-lobby-frontend-prototype-design.md). The sequenced build steps are in [the implementation plan](docs/superpowers/plans/2026-11-17-the-lobby-frontend-prototype.md). The accessibility target is WCAG 2.2 Level AA.
