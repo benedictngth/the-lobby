@@ -33,13 +33,21 @@ The user's product direction is to scope parties to a targeted area (for example
 - **In-app invitation:** a focused party summary with a Join action. No push notification or external messaging integration is required.
 - **Ended state:** explains that a party is no longer joinable and returns the person to the Area Lobby.
 
-The visual priority is the party list, the setup and join actions, and the status/commute display. Profiles, group settings, notification preferences, chat, time polls, calendar integration, and live maps or GPS are out of scope. The interface should work at mobile and desktop widths; status must use text as well as color, and primary actions must be keyboard accessible.
+The visual priority is the party list, the setup and join actions, and the status/commute display. Profiles, group settings, notification preferences, chat, time polls, calendar integration, and live maps or GPS are out of scope. The interface should work at mobile and desktop widths and support keyboard and assistive technology use.
 
 ## Visual direction
 
 The interface should feel dynamic and responsive while staying clean and easy to recognize at a glance. Use a clear hierarchy, consistent page structure, readable type, generous spacing, and distinct labels for areas, parties, and attendee statuses. Keep the primary actions—**Start a Party** and **Join**—easy to find, and make party cards visually distinct from the area controls and status indicators.
 
 Use a mobile-first responsive layout: a simple single-column flow on narrow screens, expanding into a centered, well-spaced layout on wider screens without changing the task order. Make interaction feel immediate with clear state changes and brief, purposeful transitions; avoid motion that distracts from scanning or slows the task, and respect reduced-motion preferences. Exact colors, typefaces, and decorative styling remain open for visual exploration.
+
+## Accessibility target and verification
+
+Target **WCAG 2.2 Level AA** conformance across all prototype pages and complete processes, including guided walkthrough, free exploration, party setup, joining, status changes, and ending a party. This means meeting every applicable Level A and Level AA success criterion, not only the examples below. WCAG 2.2 is the current W3C-recommended target; Level AAA is outside this spec's conformance target. See the [W3C WCAG 2.2 Recommendation](https://www.w3.org/TR/WCAG22/).
+
+Design and implementation must provide semantic headings, landmarks, labeled controls, understandable instructions, and programmatically associated validation errors. Keyboard users need a logical order, visible focus that is not obscured, and access to every action without pointer-only gestures. Status changes and confirmations must be available to assistive technology. Text, controls, and status indicators need sufficient contrast; meaning must not rely on color, position, or animation alone. Layout must remain usable with text resized and when content reflows at narrow widths. Interactive targets must meet WCAG 2.2 AA minimum sizing or spacing requirements. Motion must respect reduced-motion preferences.
+
+Before claiming conformance, evaluate every applicable Level A and AA criterion across the complete flows using automated checks plus manual review, including keyboard-only operation, representative screen-reader use, zoom/reflow, contrast, focus visibility, and target sizing. Automated scans alone do not establish conformance.
 
 ## Self-guided exploration
 
