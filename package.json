@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test:unit": "node --test tests/domain.test.js",
     "test:e2e": "playwright test",
-    "test": "npm run test:e2e"
+    "test": "npm run test:unit && npm run test:e2e"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.2",
