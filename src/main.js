@@ -1,4 +1,9 @@
+import { loadState, saveState } from './storage.js';
+
 const app = document.querySelector('#app');
+
+const loaded = loadState();
+let state = loaded.state;
 
 const heading = document.createElement('h1');
 heading.textContent = 'The Lobby';
@@ -18,4 +23,20 @@ freeButton.type = 'button';
 freeButton.textContent = 'Explore freely';
 
 actions.append(guidedButton, freeButton);
-app.replaceChildren(heading, intro, actions);
+
+const persistenceStatus = document.createElement('p');
+persistenceStatus.className = 'persistence-warning';
+persistenceStatus.setAttribute('role', 'status');
+persistenceStatus.textContent = loaded.warning;
+persistenceStatus.hidden = !loaded.warning;
+
+app.replaceChildren(heading, intro, actions, persistenceStatus);
+
+// Every state mutation goes through persist so the session survives a refresh.
+function persist(nextState) {
+  state = nextState;
+  const { warning } = saveState(state);
+  persistenceStatus.textContent = warning;
+  persistenceStatus.hidden = !warning;
+  return state;
+}
