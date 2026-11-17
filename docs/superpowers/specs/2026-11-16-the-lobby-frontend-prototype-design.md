@@ -35,6 +35,12 @@ The user's product direction is to scope parties to a targeted area (for example
 
 The visual priority is the party list, the setup and join actions, and the status/commute display. Profiles, group settings, notification preferences, chat, time polls, calendar integration, and live maps or GPS are out of scope. The interface should work at mobile and desktop widths; status must use text as well as color, and primary actions must be keyboard accessible.
 
+## Visual direction
+
+The interface should feel dynamic and responsive while staying clean and easy to recognize at a glance. Use a clear hierarchy, consistent page structure, readable type, generous spacing, and distinct labels for areas, parties, and attendee statuses. Keep the primary actions—**Start a Party** and **Join**—easy to find, and make party cards visually distinct from the area controls and status indicators.
+
+Use a mobile-first responsive layout: a simple single-column flow on narrow screens, expanding into a centered, well-spaced layout on wider screens without changing the task order. Make interaction feel immediate with clear state changes and brief, purposeful transitions; avoid motion that distracts from scanning or slows the task, and respect reduced-motion preferences. Exact colors, typefaces, and decorative styling remain open for visual exploration.
+
 ## Self-guided exploration
 
 The prototype supports both moderated sessions and independent use. **Guided walkthrough** presents the Quick Pairing scenario as short, skippable prompts while the participant performs the interactions. **Explore freely** opens the Area Lobby without prompts so a visitor can browse parties and try setup, joining, and status changes at their own pace.
