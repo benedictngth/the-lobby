@@ -4,7 +4,7 @@
 
 **Goal:** Build a responsive, accessible, self-guided and moderator-friendly frontend prototype for area-scoped Quick Pairing meetups.
 
-**Architecture:** Use a small client-only Vite app with plain JavaScript modules, semantic HTML, and CSS. Keep party rules in pure state-transition functions, persistence in one browser-storage module, and rendering/event handling in focused view and app modules. Seeded data and a local role switcher simulate host and resident sessions without an account, server, or external integrations.
+**Architecture:** Use a small client-only Vite app with plain JavaScript modules, semantic HTML, and CSS. Keep party rules in pure state-transition functions, persistence in one browser-storage module, and rendering/event handling in focused view and app modules. Build UI with DOM nodes and `textContent` so user-entered values never become HTML. Seeded data and a local role switcher simulate host and resident sessions without an account, server, or external integrations.
 
 **Tech Stack:** HTML, CSS, modern browser JavaScript modules, Vite for local development/build, Node's built-in test runner for domain logic, Playwright for browser flows, and `@axe-core/playwright` for automated accessibility checks.
 
@@ -20,6 +20,9 @@
 - After at least one guest joins, end a party when all attendees, including the host, are **Here**. If no guest joins, end it after its scheduled time passes.
 - Use **WCAG 2.2 Level AA** as the conformance target across all pages and complete flows. Evaluate every applicable Level A and AA criterion with automated and manual checks before claiming conformance.
 - Use clear text labels for states, accessible keyboard interactions, logical visible focus, sufficient contrast and target size, and respect reduced-motion preferences.
+- Use native form controls and constraints first. Reveal custom errors after a field is edited and blurred or after submit; associate visible errors with their fields and focus the first invalid field on failed submit.
+- Treat meetup time as local wall-clock time for the single configured residence area. Keep the `datetime-local` value as a local date-time string; do not convert it to UTC or an instant in the prototype. The demo assumes the browser device uses the residence area's time zone.
+- Use DOM APIs and `textContent` for dynamic content. Do not parse user-entered values as HTML or add an HTML sanitizer for plain text fields.
 - Keep the visual hierarchy clean and recognizable; use brief, purposeful interaction feedback. Exact colors and typefaces remain open to visual exploration within the accessibility target.
 - Record usability observations without analytics or participant tracking. Compare the create/join task with a group-chat baseline as a study activity, not a product integration.
 
@@ -66,11 +69,11 @@ export function saveState(state, storage = window.localStorage); // returns { pe
 export function resetState(storage = window.localStorage); // returns { state, persistenceAvailable, warning }
 
 // src/views.js
-export function renderDemoStart(); // returns HTML string
-export function renderAreaLobby(state, ui); // returns HTML string
-export function renderPartySetup(state, ui); // returns HTML string
-export function renderPartyDetails(state, partyId, ui); // returns HTML string
-export function renderGuidedPrompt(ui); // returns HTML string
+export function renderDemoStart(); // returns a DocumentFragment
+export function renderAreaLobby(state, ui); // returns a DocumentFragment
+export function renderPartySetup(state, ui); // returns a DocumentFragment
+export function renderPartyDetails(state, partyId, ui); // returns a DocumentFragment
+export function renderGuidedPrompt(ui); // returns a DocumentFragment
 
 // src/main.js
 export function mountApp(root); // installs delegated events and renders initial screen
@@ -85,7 +88,7 @@ Represent `State` as `{ areas, residents, parties, selectedAreaId, currentReside
 **Files:** Create `package.json`, `package-lock.json`, `.gitignore`, `index.html`, `src/main.js`, `src/styles.css`, `playwright.config.js`, and `tests/app.spec.js`.
 
 - [ ] Add Vite, `@playwright/test`, and `@axe-core/playwright` as development dependencies. Define `dev`, `build`, `test:e2e`, and `test` scripts; initially make `test` run `npm run test:e2e`.
-- [ ] Create an HTML document with `lang="en"`, viewport metadata, a page title, and `<main id="app">` as the app root. Load `src/main.js` as an ES module.
+- [ ] Create an HTML document with `lang="en"`, viewport metadata, a page title, and `<main id="app">` as the app root. Load `src/main.js` as an ES module. Keep one clear `<h1>` per view and use native landmarks and controls.
 - [ ] Configure Playwright to launch Vite on `127.0.0.1:4173` and use that as `baseURL`. Add `demoStartOffersGuidedAndFreeModes` in `tests/app.spec.js`; assert the page heading and both entry actions are visible.
 - [ ] Install the Chromium browser for Playwright with `npx playwright install chromium`.
 - [ ] Run `npm run test:e2e`. Expected: the new smoke test fails because the app shell does not yet render the entry actions.
@@ -101,7 +104,7 @@ Represent `State` as `{ areas, residents, parties, selectedAreaId, currentReside
 - [ ] Create `tests/domain.test.js` with the seven domain cases listed below, using `node:test`, `node:assert/strict`, and fixed timestamps. Add `test:unit` as `node --test tests/domain.test.js` and update `test` to run `npm run test:unit && npm run test:e2e`.
 - [ ] Run `npm run test:unit`. Expected: tests fail because `src/data.js` and `src/domain.js` do not exist yet.
 - [ ] Create deterministic sample areas (including a residence block), two residents in the area, one or more active parties, and fixed commute estimates. `createInitialState()` returns fresh objects so tests cannot mutate a shared seed.
-- [ ] Implement `validatePartyInput(input, now)` to return field-keyed messages for missing area/name/place, malformed time, and a meetup time that is not in the future.
+- [ ] Implement `validatePartyInput(input, now)` to return field-keyed messages for missing area/name/place, malformed time, and a meetup time that is not in the future. Preserve the `datetime-local` wall-clock string; compare it against local time without converting it through `toISOString()` or UTC.
 - [ ] Implement `createParty(state, input, now)` to add an Open party, add its host with **In** status, and preserve all existing parties.
 - [ ] Implement `joinParty(state, partyId, residentId, now)` with outcomes `joined`, `already-joined`, `wrong-area`, or `ended`. Only an eligible resident can join an Open party; duplicate and ended-party attempts do not mutate state.
 - [ ] Implement `updateStatus(state, partyId, residentId, status, now)` for **In**, **On the way**, and **Here**. Set the resident's seeded ETA only for **On the way**.
@@ -132,10 +135,10 @@ Represent `State` as `{ areas, residents, parties, selectedAreaId, currentReside
 - [ ] Run the two tests. Expected: they fail because the Area Lobby and party setup views are not implemented.
 - [ ] Wire **Explore freely** from demo start to the Area Lobby; keep guided mode's prompt behavior for Task 6.
 - [ ] Render an Area Lobby with a labeled area selector and active party cards. Each card identifies area, name, place, time, Open state, attendee count, and a sample estimate that can inform joining.
-- [ ] Render Party Setup with labeled controls for target area, party name, place, and future time, followed by a review/start action.
-- [ ] On invalid submit, render each field error adjacent to and programmatically associated with its input; keep entered values intact and focus the first invalid field.
-- [ ] Escape user-entered name and place anywhere they are rendered into HTML. Add browser case `rendersPartyTextAsText`, submit `<em>Campus Cafe</em>` as the name, and assert it appears as literal text with no `em` element created.
-- [ ] On valid submit, create the party through `domain.js`, persist it, show a confirmation available to assistive technology, and open its details.
+- [ ] Render Party Setup as a semantic `<form>` with explicit visible `<label for>` associations, `required` constraints, `maxlength` where useful, a `datetime-local` control, and a submit button. Keep the area's local date-time value as a string; this prototype assumes the device time zone matches the configured residence.
+- [ ] Let native constraints block missing or malformed values. For app-specific errors, reveal them after an edited field blurs or after submit; associate visible field errors with `aria-describedby` and set `aria-invalid` only while an error is shown. Preserve entered values and focus the first invalid field on failed submit. Clear an error when its field becomes valid.
+- [ ] Build rendered views with `document.createElement`, `textContent`, and `replaceChildren`; never interpolate user-entered values into HTML strings. Add browser case `rendersPartyTextAsText`, submit `<em>Campus Cafe</em>` as the name, and assert it appears as literal text with no `em` element created.
+- [ ] On valid submit, create the party through `domain.js`, persist it, show one polite confirmation in a shared `role="status"` region, and open its details. Do not make every field error a live region.
 - [ ] Add browser test `persistsPartyAfterReload` that creates a party through the UI, reloads the page, and asserts the party remains Open in its area.
 - [ ] Add browser test `showsPersistenceWarningWhenStorageFails` using Playwright `addInitScript` to replace the `localStorage` getter with one that throws; assert the visible session-only warning.
 - [ ] Run `npm run test:e2e`. Expected: browsing, validation, and creation cases pass.
@@ -147,10 +150,10 @@ Represent `State` as `{ areas, residents, parties, selectedAreaId, currentReside
 
 - [ ] Add `residentCanJoinAndSeeEta`, `hostCanLeaveAndPartyRemainsJoinable`, `attendeesCanMarkHereToEndParty`, `duplicateJoinIsBlocked`, and `endedPartyCannotBeJoined` to `tests/app.spec.js`. For Goal D, create as host, return to Lobby, reload, switch to the resident role, and join the still-Open party.
 - [ ] Run the new cases. Expected: they fail because party details, role switching, and status actions are incomplete.
-- [ ] Render party details with a pre-join invitation state and one clear **Join** action. Show the joining resident's sample commute estimate before the action.
+- [ ] Render party details with a pre-join invitation state and one clear **Join** action. Show the joining resident's sample commute estimate before the action. Use native buttons for all actions and text labels alongside status color.
 - [ ] Add an accessible demo role selector for the host and second resident. Switching roles changes `currentResidentId` and returns to the Area Lobby without changing party data.
 - [ ] On join, add the resident once, display attendees and their text-labeled statuses, and show ETA beside each **On the way** status. Keep ended parties readable but non-joinable.
-- [ ] Connect status controls to `updateStatus`; announce changes through a polite status message. Recompute lifecycle after each update and refresh.
+- [ ] Connect status controls to `updateStatus`; announce meaningful changes through the single polite status region. Recompute lifecycle after each update and refresh.
 - [ ] Recompute lifecycle at app startup, when the page becomes visible, and once per minute while open so an unjoined party exits the list after its scheduled time passes. Add `unjoinedPartyExpiresAfterScheduledTime` using Playwright's mocked clock.
 - [ ] Run `npm run test:unit` and `npm run test:e2e`. Expected: lifecycle rules and all party interactions pass.
 - [ ] Commit as `feat: add joining and attendee status flows`.
@@ -171,10 +174,10 @@ Represent `State` as `{ areas, residents, parties, selectedAreaId, currentReside
 
 **Files:** Modify `src/styles.css`, `src/views.js`, `index.html`, and `tests/app.spec.js`.
 
-- [ ] Add a small CSS token set for page width, spacing, type scale, borders, focus ring, and semantic status colors. Choose colors only after checking text and control contrast; do not add remote fonts or decorative assets.
-- [ ] Use one-column party and form layouts on narrow screens and a centered, well-spaced layout on wider screens. Keep the task order and primary actions unchanged.
+- [ ] Add a small CSS token set for page width, spacing, type scale, borders, focus ring, and semantic status colors. Choose colors only after checking text and control contrast; do not add remote fonts or decorative assets. Preserve visible `:focus-visible` indicators and aim for 24-by-24 CSS-pixel minimum targets, with larger controls on coarse pointers where practical.
+- [ ] Use one-column party and form layouts on narrow screens and a centered, well-spaced layout on wider screens. Let action rows wrap when space is tight, and keep the task order and primary actions unchanged.
 - [ ] Make party cards, area controls, status labels, and primary actions visually distinct. Use text labels alongside state color, visible focus, and brief state transitions.
-- [ ] Add `@media (prefers-reduced-motion: reduce)` to remove nonessential transitions. Ensure 320 CSS-pixel reflow and 200% text resize retain all controls and content.
+- [ ] Add `@media (prefers-reduced-motion: reduce)` to remove nonessential transitions. Ensure 320 CSS-pixel reflow and 200% text resize retain all controls and content; fix overflow at its source rather than clipping it or relying on fixed-height content containers.
 - [ ] Add browser checks `layoutReflowsAtNarrowAndWideViewports` at 320 CSS pixels and 1280 CSS pixels, and `reducedMotionRemovesTransitions` using reduced-motion emulation.
 - [ ] Run those checks. Expected: they fail until responsive and reduced-motion styles are applied.
 - [ ] Run `npm run test:e2e`. Expected: no horizontal page scrolling at the narrow viewport and both layout checks pass.
