@@ -5,10 +5,12 @@ import {
   updateStatus,
   validatePartyInput,
 } from './domain.js';
-import { loadState, saveState } from './storage.js';
+import { loadState, resetState, saveState } from './storage.js';
 import {
+  GUIDED_STEPS,
   renderAreaLobby,
   renderDemoStart,
+  renderGuidedPrompt,
   renderPartyDetails,
   renderPartySetup,
 } from './views.js';
@@ -49,11 +51,26 @@ function render() {
   else if (ui.screen === 'party-details') fragment = renderPartyDetails(state, ui.activePartyId, ui);
   else fragment = renderDemoStart();
 
+  // Kept in normal reading order: prompt follows the view heading, no overlay or focus trap.
+  const guided = renderGuidedPrompt(ui);
+  const heading = fragment.querySelector('h1');
+  if (heading) heading.after(guided);
+  else fragment.append(guided);
+
   root.replaceChildren(fragment, status);
 
   const message = warning || notice;
   if (status.textContent !== message) status.textContent = message;
   status.hidden = !message;
+}
+
+// Guided progress is in memory only; an action or the prompt's skip control advances one step.
+function advanceGuided(step) {
+  if (ui.mode !== 'guided' || ui.guidedStep !== step) return;
+  ui.guidedStep += 1;
+  if (ui.guidedStep === GUIDED_STEPS.length) {
+    notice = notice ? `Guided walkthrough complete. ${notice}` : 'Guided walkthrough complete.';
+  }
 }
 
 // Every state mutation goes through persist so the session survives a refresh.
@@ -121,7 +138,20 @@ root.addEventListener('click', (event) => {
   if (action === 'explore' || action === 'guided') {
     notice = '';
     ui.mode = action === 'guided' ? 'guided' : 'free';
+    ui.guidedStep = 0;
     ui.screen = 'area-lobby';
+    render();
+  } else if (action === 'guided-next') {
+    advanceGuided(ui.guidedStep);
+    render();
+    root.querySelector('.guided-prompt')?.focus();
+  } else if (action === 'reset-demo') {
+    notice = 'Demo reset: sample data restored.';
+    persist(resetState().state);
+    ui.mode = 'free';
+    ui.screen = 'demo-start';
+    ui.activePartyId = null;
+    ui.guidedStep = 0;
     render();
   } else if (action === 'start-party') {
     notice = '';
@@ -154,6 +184,7 @@ root.addEventListener('click', (event) => {
     }
 
     advanceLifecycle();
+    if (result === 'joined') advanceGuided(2);
     render();
     root.querySelector('h1')?.focus();
   } else if (action === 'set-status') {
@@ -161,6 +192,9 @@ root.addEventListener('click', (event) => {
     persist(updateStatus(state, ui.activePartyId, state.currentResidentId, value));
     const ended = advanceLifecycle();
     notice = `Status set to ${value}.${ended ? ` ${ended}` : ''}`;
+    advanceGuided(4);
+    const party = state.parties.find((item) => item.id === ui.activePartyId);
+    if (party?.status === 'Ended') advanceGuided(5);
     render();
     root.querySelector('h1')?.focus();
   } else if (action === 'back-to-lobby') {
@@ -183,6 +217,7 @@ root.addEventListener('change', (event) => {
     const resident = state.residents.find((item) => item.id === event.target.value);
     persist({ ...state, currentResidentId: event.target.value });
     notice = `Demo role: now acting as ${resident?.name ?? 'the selected resident'}.`;
+    advanceGuided(1);
     ui.activePartyId = null;
     ui.screen = 'area-lobby';
     render();
@@ -229,6 +264,7 @@ root.addEventListener('submit', (event) => {
   persist({ ...nextState, selectedAreaId: values.areaId });
   const areaName = state.areas.find((area) => area.id === values.areaId)?.name ?? 'the area';
   notice = `Party "${values.name.trim()}" created in ${areaName}.`;
+  advanceGuided(0);
   ui.screen = 'area-lobby';
   render();
   root.querySelector('h1')?.focus();

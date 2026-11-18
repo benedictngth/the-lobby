@@ -348,3 +348,58 @@ test('unjoinedPartyExpiresAfterScheduledTime', async ({ page }) => {
   await expect(page.getByRole('article', { name: 'Study session' })).toHaveCount(0);
   await expect(page.getByText('No open parties in this area yet.')).toBeVisible();
 });
+
+test('guidedWalkthroughCanBeSkipped', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Guided walkthrough' }).click();
+
+  const prompt = page.getByRole('region', { name: 'Guided walkthrough' });
+  await expect(prompt).toContainText('Step 1 of 6');
+  await expect(prompt).toContainText('Start a party');
+
+  for (let step = 2; step <= 6; step += 1) {
+    await prompt.getByRole('button', { name: 'Skip this step' }).click();
+    await expect(prompt).toContainText(`Step ${step} of 6`);
+  }
+
+  await prompt.getByRole('button', { name: 'Skip this step' }).click();
+  await expect(prompt).toContainText('walkthrough complete');
+  await expect(page.getByRole('status')).toContainText('Guided walkthrough complete');
+});
+
+test('freeExploreHasNoPrompts', async ({ page }) => {
+  await openLobby(page);
+
+  await expect(page.getByRole('heading', { level: 1, name: 'Area lobby' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Guided walkthrough' })).toHaveCount(0);
+  await expect(page.getByText(/Step \d of 6/)).toHaveCount(0);
+});
+
+test('resetRestoresSeedState', async ({ page }) => {
+  await openLobby(page);
+  await createPartyThroughUi(page, {
+    areaId: 'student-union',
+    name: 'Temporary meetup',
+    place: 'Union steps',
+  });
+  await switchDemoRole(page, 'Li');
+  await expect(page.getByRole('article', { name: 'Temporary meetup' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Reset sample data' }).click();
+
+  await expect(page.getByRole('status')).toContainText('sample data restored');
+  await expect(page.getByRole('button', { name: 'Explore freely' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Explore freely' }).click();
+  await expect(page.getByLabel('Area')).toHaveValue('north-block');
+  await expect(page.getByLabel('Demo role')).toHaveValue('resident-ada');
+  await expect(page.getByRole('article', { name: 'Study session' })).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Temporary meetup' })).toHaveCount(0);
+
+  const saved = await page.evaluate(() =>
+    JSON.parse(window.localStorage.getItem('the-lobby-demo-v1')),
+  );
+  expect(saved.parties.map((party) => party.name)).toEqual(['Study session']);
+  expect(saved.currentResidentId).toBe('resident-ada');
+  expect(saved.selectedAreaId).toBe('north-block');
+});

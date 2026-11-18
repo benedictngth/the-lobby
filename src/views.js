@@ -83,6 +83,41 @@ function renderPartyCard(state, party, areaName) {
   return article;
 }
 
+export const GUIDED_STEPS = [
+  'Start a party: choose an area, name, place, and future time, then create it.',
+  'Switch the demo role to Li to act as another resident.',
+  'Open the party you created and join it.',
+  'Check persistence: the party and your join are saved in this browser, so they survive a refresh.',
+  'From the party page, set your status to On the way.',
+  'Complete the party: mark yourself and the host Here.',
+];
+
+export function renderGuidedPrompt(ui) {
+  const fragment = document.createDocumentFragment();
+  if (ui.mode !== 'guided') return fragment;
+
+  const section = el('section', 'guided-prompt');
+  section.setAttribute('aria-label', 'Guided walkthrough');
+  section.tabIndex = -1;
+
+  if (ui.guidedStep >= GUIDED_STEPS.length) {
+    section.append(
+      el('h2', null, 'Quick Pairing walkthrough complete'),
+      el('p', null, 'Explore freely or reset the sample data to run the demo again.'),
+    );
+    fragment.append(section);
+    return fragment;
+  }
+
+  section.append(
+    el('h2', null, `Step ${ui.guidedStep + 1} of ${GUIDED_STEPS.length}`),
+    el('p', null, GUIDED_STEPS[ui.guidedStep]),
+    actionButton('guided-next', 'Skip this step'),
+  );
+  fragment.append(section);
+  return fragment;
+}
+
 export function renderDemoStart() {
   const fragment = document.createDocumentFragment();
   fragment.append(
@@ -138,7 +173,17 @@ export function renderAreaLobby(state, ui) {
     'Demo control: switches which resident you are on this device. Party data does not change.',
   );
   roleHint.id = 'role-hint';
-  demoControls.append(roleLabel, roleSelect, roleHint);
+
+  const reset = actionButton('reset-demo', 'Reset sample data');
+  reset.setAttribute('aria-describedby', 'reset-hint');
+  const resetHint = el(
+    'p',
+    'demo-hint',
+    'Demo control: restores the original sample parties and roles.',
+  );
+  resetHint.id = 'reset-hint';
+
+  demoControls.append(roleLabel, roleSelect, roleHint, reset, resetHint);
 
   const parties = state.parties.filter(
     (party) => party.areaId === areaId && party.status === 'Open',

@@ -53,6 +53,17 @@ select {
   margin: 0.25rem 0 0;
 }
 
+.guided-prompt {
+  border: 1px solid #767676;
+  border-radius: 0.5rem;
+  margin-block: 1rem;
+  padding: 1rem;
+}
+
+.guided-prompt h2 {
+  margin-block-start: 0;
+}
+
 .status-controls {
   align-items: center;
   display: flex;
