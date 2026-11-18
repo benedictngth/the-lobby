@@ -5,8 +5,8 @@ function el(tag, className, text) {
   return node;
 }
 
-function actionButton(action, text) {
-  const button = el('button', null, text);
+function actionButton(action, text, variant) {
+  const button = el('button', variant ?? null, text);
   button.type = 'button';
   button.dataset.action = action;
   return button;
@@ -48,8 +48,24 @@ function formatWallClock(value) {
   return time ? `${date} at ${time}` : text;
 }
 
+const STATUS_CLASS = {
+  Open: 'open',
+  In: 'in',
+  'On the way': 'on-the-way',
+  Here: 'here',
+  Ended: 'ended',
+};
+
+// The label is the status text; colour only reinforces it.
+function statusBadge(status) {
+  return el('span', `status-badge status-${STATUS_CLASS[status] ?? 'ended'}`, status);
+}
+
 function appendDetail(list, term, description) {
-  list.append(el('dt', null, term), el('dd', null, description));
+  const detail = el('dd');
+  if (description instanceof Node) detail.append(description);
+  else detail.textContent = description;
+  list.append(el('dt', null, term), detail);
 }
 
 function renderPartyCard(state, party, areaName) {
@@ -64,7 +80,7 @@ function renderPartyCard(state, party, areaName) {
   appendDetail(details, 'Area', areaName);
   appendDetail(details, 'Place', party.place);
   appendDetail(details, 'Time', formatWallClock(party.startsAt));
-  appendDetail(details, 'Status', party.status);
+  appendDetail(details, 'Status', statusBadge(party.status));
   appendDetail(
     details,
     'Attendees',
@@ -83,6 +99,7 @@ function renderPartyCard(state, party, areaName) {
   return article;
 }
 
+// shortcut: the persistence step is instructional only because the in-memory `ui` cannot survive a reload; upgrade when walkthrough progress must resume after refresh.
 export const GUIDED_STEPS = [
   'Start a party: choose an area, name, place, and future time, then create it.',
   'Switch the demo role to Li to act as another resident.',
@@ -130,7 +147,10 @@ export function renderDemoStart() {
   );
 
   const actions = el('div', 'demo-start-actions');
-  actions.append(actionButton('guided', 'Guided walkthrough'), actionButton('explore', 'Explore freely'));
+  actions.append(
+    actionButton('guided', 'Guided walkthrough', 'primary'),
+    actionButton('explore', 'Explore freely'),
+  );
   fragment.append(actions);
   return fragment;
 }
@@ -197,7 +217,7 @@ export function renderAreaLobby(state, ui) {
     for (const party of parties) list.append(renderPartyCard(state, party, areaName));
   }
 
-  fragment.append(controls, demoControls, actionButton('start-party', 'Start a Party'), list);
+  fragment.append(controls, demoControls, actionButton('start-party', 'Start a Party', 'primary'), list);
   return fragment;
 }
 
@@ -241,7 +261,7 @@ export function renderPartySetup(state, ui) {
   );
 
   const actions = el('div', 'form-actions');
-  const submit = el('button', null, 'Create party');
+  const submit = el('button', 'primary', 'Create party');
   submit.type = 'submit';
   actions.append(submit, actionButton('back-to-lobby', 'Back to lobby'));
   form.append(actions);
@@ -274,7 +294,7 @@ export function renderPartyDetails(state, partyId, ui) {
   appendDetail(details, 'Area', areaName);
   appendDetail(details, 'Place', party.place);
   appendDetail(details, 'Time', formatWallClock(party.startsAt));
-  appendDetail(details, 'Status', party.status);
+  appendDetail(details, 'Status', statusBadge(party.status));
   appendDetail(details, 'Host', host?.name ?? 'Unknown resident');
   fragment.append(details);
 
@@ -296,7 +316,7 @@ export function renderPartyDetails(state, partyId, ui) {
       : 'Estimate unavailable';
     fragment.append(el('p', 'party-estimate', estimate));
 
-    const join = actionButton('join-party', 'Join party');
+    const join = actionButton('join-party', 'Join party', 'primary');
     join.dataset.partyId = party.id;
     fragment.append(join);
   }
@@ -323,7 +343,9 @@ export function renderPartyDetails(state, partyId, ui) {
       item.status === 'On the way' && Number.isFinite(item.etaMinutes)
         ? ` — ETA ${item.etaMinutes} min`
         : '';
-    list.append(el('li', null, `${name} — ${item.status}${eta}`));
+    const entry = el('li');
+    entry.append(`${name} — `, statusBadge(item.status), eta);
+    list.append(entry);
   }
 
   fragment.append(el('h2', null, 'Attendees'), list, actionButton('back-to-lobby', 'Back to lobby'));

@@ -375,6 +375,91 @@ test('freeExploreHasNoPrompts', async ({ page }) => {
   await expect(page.getByText(/Step \d of 6/)).toHaveCount(0);
 });
 
+async function measureLayout(page) {
+  return page.evaluate(() => {
+    const html = document.documentElement;
+    const box = (node) => (node ? node.getBoundingClientRect().toJSON() : null);
+    const app = document.querySelector('#app');
+    const list = document.querySelector('.party-list');
+    const select = document.querySelector('#area-select');
+    const start = [...document.querySelectorAll('button')].find(
+      (button) => button.textContent.trim() === 'Start a Party',
+    );
+    const heading = document.querySelector('h1');
+
+    return {
+      scrollWidth: html.scrollWidth,
+      clientWidth: html.clientWidth,
+      viewportWidth: window.innerWidth,
+      app: box(app),
+      columns: getComputedStyle(list).gridTemplateColumns.split(' ').filter(Boolean).length,
+      cards: [...document.querySelectorAll('.party-card')].map(box),
+      select: box(select),
+      start: box(start),
+      heading: heading?.textContent,
+      order: [heading, select, start, list].map((node) =>
+        Math.round(node.getBoundingClientRect().top),
+      ),
+    };
+  });
+}
+
+test('layoutReflowsAtNarrowAndWideViewports', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await openLobby(page);
+
+  const narrow = await measureLayout(page);
+  expect(narrow.scrollWidth).toBeLessThanOrEqual(narrow.clientWidth);
+  expect(narrow.heading).toBe('Area lobby');
+  expect(narrow.columns).toBe(1);
+  expect(narrow.cards).toHaveLength(1);
+  expect(narrow.app.width / narrow.viewportWidth).toBeGreaterThan(0.87);
+  expect(narrow.select.height).toBeGreaterThanOrEqual(24);
+  expect(narrow.start.height).toBeGreaterThanOrEqual(24);
+  expect(narrow.order[0]).toBeLessThan(narrow.order[1]);
+  expect(narrow.order[1]).toBeLessThan(narrow.order[2]);
+  expect(narrow.order[2]).toBeLessThan(narrow.order[3]);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const wide = await measureLayout(page);
+  expect(wide.scrollWidth).toBeLessThanOrEqual(wide.clientWidth);
+  expect(wide.heading).toBe('Area lobby');
+  expect(wide.columns).toBeGreaterThan(1);
+  expect(wide.cards).toHaveLength(1);
+  expect(wide.cards[0].width).toBeLessThan(wide.app.width);
+  expect(wide.start.height).toBeGreaterThanOrEqual(24);
+  expect(wide.order[0]).toBeLessThan(wide.order[1]);
+  expect(wide.order[1]).toBeLessThan(wide.order[2]);
+  expect(wide.order[2]).toBeLessThan(wide.order[3]);
+
+  // Wide viewports centre the content instead of stretching it edge to edge.
+  const leftGap = wide.app.left;
+  const rightGap = wide.viewportWidth - (wide.app.left + wide.app.width);
+  expect(Math.abs(leftGap - rightGap)).toBeLessThanOrEqual(1);
+  expect(leftGap).toBeGreaterThanOrEqual(48);
+  expect(narrow.app.width / narrow.viewportWidth).toBeGreaterThan(
+    wide.app.width / wide.viewportWidth,
+  );
+});
+
+test('reducedMotionRemovesTransitions', async ({ page }) => {
+  await openLobby(page);
+
+  const transitionDuration = (locator) =>
+    locator.evaluate((node) => getComputedStyle(node).transitionDuration);
+
+  const start = page.getByRole('button', { name: 'Start a Party' });
+  const card = page.getByRole('article', { name: 'Study session' });
+
+  expect(await transitionDuration(start)).not.toBe('0s');
+  expect(await transitionDuration(card)).not.toBe('0s');
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+
+  expect(await transitionDuration(start)).toBe('0s');
+  expect(await transitionDuration(card)).toBe('0s');
+});
+
 test('resetRestoresSeedState', async ({ page }) => {
   await openLobby(page);
   await createPartyThroughUi(page, {
