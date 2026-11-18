@@ -104,6 +104,8 @@ function refreshLifecycle() {
   const message = advanceLifecycle();
   if (!message) return;
   notice = message;
+  // A re-render mid-setup would wipe unsaved form values; the notice waits for the next render.
+  if (ui.screen === 'party-setup') return;
   render();
 }
 

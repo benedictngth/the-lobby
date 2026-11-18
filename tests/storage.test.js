@@ -48,12 +48,27 @@ test('fallsBackForInvalidJson', () => {
   assert.equal(loaded.persistenceAvailable, true);
   assert.ok(loaded.warning.length > 0);
   assert.deepEqual(loaded.state, createInitialState());
+  assert.deepEqual([...storage.keys()], []);
 
   storage.setItem(KEY, JSON.stringify({ areas: [] }));
   const malformed = loadState(storage);
   assert.equal(malformed.persistenceAvailable, true);
   assert.ok(malformed.warning.length > 0);
   assert.deepEqual(malformed.state, createInitialState());
+  assert.deepEqual([...storage.keys()], []);
+});
+
+test('keepsSeedDataWhenCorruptDataCannotBeRemoved', () => {
+  const storage = memoryStorage();
+  storage.setItem(KEY, '{not json');
+  storage.removeItem = () => {
+    throw new Error('storage blocked');
+  };
+
+  const loaded = loadState(storage);
+  assert.equal(loaded.persistenceAvailable, true);
+  assert.ok(loaded.warning.length > 0);
+  assert.deepEqual(loaded.state, createInitialState());
 });
 
 test('reportsStorageAccessFailure', () => {

@@ -379,6 +379,18 @@ test('unjoinedPartyExpiresAfterScheduledTime', async ({ page }) => {
   await expect(page.getByText('No open parties in this area yet.')).toBeVisible();
 });
 
+test('lifecycleRefreshKeepsSetupFormValues', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-17T09:00:00') });
+  await openLobby(page);
+  await page.getByRole('button', { name: 'Start a Party' }).click();
+  await page.getByLabel('Party name').fill('Draft meetup');
+
+  await page.clock.fastForward(91 * 60_000);
+
+  await expect(page.getByRole('heading', { level: 1, name: 'Start a party' })).toBeVisible();
+  await expect(page.getByLabel('Party name')).toHaveValue('Draft meetup');
+});
+
 test('guidedWalkthroughCanBeSkipped', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Guided walkthrough' }).click();

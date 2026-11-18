@@ -15,7 +15,7 @@ WCAG 2.2 removed 4.1.1 Parsing, so it is not a 2.2 criterion and is not listed. 
 
 ## 1. Applicable Level A and AA success criteria
 
-### Principle 1 — Perceivable
+### Level A success criteria
 
 | Criterion | Level | Method | Prototype flow | Result / evidence |
 | --- | --- | --- | --- | --- |

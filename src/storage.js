@@ -32,6 +32,13 @@ function seedResult(persistenceAvailable, warning) {
   return { state: createInitialState(), persistenceAvailable, warning };
 }
 
+function discardCorrupt(target) {
+  // Best effort: a storage that cannot remove still loads the seed data for this session.
+  try {
+    target.removeItem(KEY);
+  } catch {}
+}
+
 export function loadState(storage) {
   const target = resolveStorage(storage);
   if (!target) return seedResult(false, UNAVAILABLE);
@@ -49,10 +56,14 @@ export function loadState(storage) {
   try {
     parsed = JSON.parse(raw);
   } catch {
+    discardCorrupt(target);
     return seedResult(true, CORRUPT);
   }
 
-  if (!isState(parsed)) return seedResult(true, CORRUPT);
+  if (!isState(parsed)) {
+    discardCorrupt(target);
+    return seedResult(true, CORRUPT);
+  }
 
   return { state: parsed, persistenceAvailable: true, warning: '' };
 }
