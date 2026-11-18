@@ -1,4 +1,34 @@
+import AxeBuilder from '@axe-core/playwright';
 import { test, expect } from '@playwright/test';
+
+const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+
+// Serious and critical findings fail the scan; lesser findings are logged for the manual audit.
+async function scanForViolations(page, label) {
+  const { violations } = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
+  const blocking = violations.filter(
+    (violation) => violation.impact === 'serious' || violation.impact === 'critical',
+  );
+  const logged = violations.filter((violation) => !blocking.includes(violation));
+
+  for (const violation of logged) {
+    console.log(
+      `[a11y:${label}] ${violation.impact} ${violation.id}: ${violation.help} (${violation.nodes
+        .map((node) => node.target.join(' '))
+        .join('; ')})`,
+    );
+  }
+
+  expect(
+    blocking.map(({ id, impact, help, nodes }) => ({
+      id,
+      impact,
+      help,
+      targets: nodes.map((node) => node.target.join(' ')),
+    })),
+    `${label} has serious or critical axe violations`,
+  ).toEqual([]);
+}
 
 function localDateTime(offsetMinutes) {
   const date = new Date(Date.now() + offsetMinutes * 60_000);
@@ -487,4 +517,71 @@ test('resetRestoresSeedState', async ({ page }) => {
   expect(saved.parties.map((party) => party.name)).toEqual(['Study session']);
   expect(saved.currentResidentId).toBe('resident-ada');
   expect(saved.selectedAreaId).toBe('north-block');
+});
+
+test('@a11y demo start', async ({ page }) => {
+  await page.goto('/');
+  await scanForViolations(page, 'demo start');
+});
+
+test('@a11y area lobby', async ({ page }) => {
+  await openLobby(page);
+  await expect(page.getByRole('heading', { level: 1, name: 'Area lobby' })).toBeVisible();
+  await scanForViolations(page, 'area lobby');
+});
+
+test('@a11y setup with errors', async ({ page }) => {
+  await openLobby(page);
+  await page.getByRole('button', { name: 'Start a Party' }).click();
+  await page.getByLabel('Area').selectOption('east-library');
+  await page.getByLabel('Party name').fill('Library meetup');
+  await page.getByLabel('Place to meet').fill('Library steps');
+  await page.getByLabel('Meetup time').fill(localDateTime(-60));
+  await page.getByRole('button', { name: 'Create party' }).click();
+  await expect(page.getByText('Choose a meetup time in the future.')).toBeVisible();
+  await scanForViolations(page, 'setup with errors');
+});
+
+test('@a11y pre-join party details', async ({ page }) => {
+  await openLobby(page);
+  await switchDemoRole(page, 'Li');
+  await openPartyDetails(page, 'Study session');
+  await expect(page.getByRole('button', { name: 'Join party' })).toBeVisible();
+  await scanForViolations(page, 'pre-join details');
+});
+
+test('@a11y joined party details', async ({ page }) => {
+  await openLobby(page);
+  await openPartyDetails(page, 'Study session');
+  await expect(page.getByRole('group', { name: 'Your status' })).toBeVisible();
+  await scanForViolations(page, 'joined details');
+});
+
+test('@a11y guided prompt', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Guided walkthrough' }).click();
+  await expect(page.getByRole('region', { name: 'Guided walkthrough' })).toContainText(
+    'Step 1 of 6',
+  );
+  await scanForViolations(page, 'guided prompt');
+});
+
+test('@a11y ended party', async ({ page }) => {
+  await openLobby(page);
+  await openPartyDetails(page, 'Study session');
+  await page
+    .getByRole('group', { name: 'Your status' })
+    .getByRole('button', { name: 'Here' })
+    .click();
+  await page.getByRole('button', { name: 'Back to lobby' }).click();
+  await switchDemoRole(page, 'Li');
+  await openPartyDetails(page, 'Study session');
+  await page.getByRole('button', { name: 'Join party' }).click();
+  await page
+    .getByRole('group', { name: 'Your status' })
+    .getByRole('button', { name: 'Here' })
+    .click();
+  await expect(page.getByText('This party has ended.')).toBeVisible();
+  await expect(page.getByText('Ended', { exact: true })).toBeVisible();
+  await scanForViolations(page, 'ended party');
 });
