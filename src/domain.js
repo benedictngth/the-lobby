@@ -2,6 +2,7 @@ const OPEN = 'Open';
 const ENDED = 'Ended';
 const ATTENDEE_STATUSES = ['In', 'On the way', 'Here'];
 const WALL_CLOCK = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/;
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 // Parses the datetime-local wall-clock string in the device's local time.
 // Never route this through toISOString()/UTC.
@@ -31,6 +32,16 @@ function wallClockToMs(value) {
   return roundTrips ? date.getTime() : null;
 }
 
+function isWallClockDate(value) {
+  return (
+    typeof value === 'string' && DATE_ONLY.test(value) && wallClockToMs(`${value}T00:00`) !== null
+  );
+}
+
+function isWallClockTime(value) {
+  return typeof value === 'string' && wallClockToMs(`2000-01-01T${value}`) !== null;
+}
+
 export function validatePartyInput(input = {}, now = Date.now()) {
   const errors = {};
 
@@ -38,15 +49,21 @@ export function validatePartyInput(input = {}, now = Date.now()) {
   if (!input.name || !input.name.trim()) errors.name = 'Enter a party name.';
   if (!input.place || !input.place.trim()) errors.place = 'Enter a place to meet.';
 
-  if (!input.startsAt) {
-    errors.startsAt = 'Enter a meetup time.';
-  } else {
-    const startsAt = wallClockToMs(input.startsAt);
-    if (startsAt === null) {
-      errors.startsAt = 'Enter a valid meetup time.';
-    } else if (startsAt <= now) {
-      errors.startsAt = 'Choose a meetup time in the future.';
-    }
+  if (!input.date) {
+    errors.date = 'Enter a meetup date.';
+  } else if (!isWallClockDate(input.date)) {
+    errors.date = 'Enter a valid meetup date.';
+  }
+
+  if (!input.time) {
+    errors.time = 'Enter a meetup time.';
+  } else if (!isWallClockTime(input.time)) {
+    errors.time = 'Enter a valid meetup time.';
+  }
+
+  // The two local wall-clock strings compose into the stored format, with no UTC step.
+  if (!errors.date && !errors.time && wallClockToMs(`${input.date}T${input.time}`) <= now) {
+    errors.time = 'Choose a meetup time in the future.';
   }
 
   return errors;
@@ -69,7 +86,7 @@ export function createParty(state, input, now = Date.now()) {
     areaId: input.areaId,
     name: input.name.trim(),
     place: input.place.trim(),
-    startsAt: input.startsAt,
+    startsAt: `${input.date}T${input.time}`,
     status: OPEN,
     hostId: state.currentResidentId,
     attendees: [{ residentId: state.currentResidentId, status: 'In' }],

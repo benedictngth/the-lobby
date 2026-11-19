@@ -33,15 +33,17 @@ const FIELDS = {
   areaId: 'setup-area',
   name: 'setup-name',
   place: 'setup-place',
-  startsAt: 'setup-starts-at',
+  date: 'setup-date',
+  time: 'setup-time',
 };
 const FIELD_BY_CONTROL = {
   area: 'areaId',
   name: 'name',
   place: 'place',
-  startsAt: 'startsAt',
+  date: 'date',
+  time: 'time',
 };
-const FIELD_ORDER = ['areaId', 'name', 'place', 'startsAt'];
+const FIELD_ORDER = ['areaId', 'name', 'place', 'date', 'time'];
 const dirtyFields = new Set();
 
 function render() {
@@ -114,7 +116,8 @@ function readSetupValues(form) {
     areaId: form.elements.namedItem('area').value,
     name: form.elements.namedItem('name').value,
     place: form.elements.namedItem('place').value,
-    startsAt: form.elements.namedItem('startsAt').value,
+    date: form.elements.namedItem('date').value,
+    time: form.elements.namedItem('time').value,
   };
 }
 
@@ -233,9 +236,13 @@ root.addEventListener('input', (event) => {
   if (!form || !field) return;
 
   dirtyFields.add(field);
-  if (event.target.getAttribute('aria-invalid') !== 'true') return;
+  // Refresh every field already showing an error: date and time share the "not in the future" rule.
+  const shown = FIELD_ORDER.filter(
+    (name) => form.querySelector(`#${FIELDS[name]}`).getAttribute('aria-invalid') === 'true',
+  );
+  if (!shown.length) return;
   const errors = validatePartyInput(readSetupValues(form));
-  setFieldError(form, field, errors[field] || '');
+  for (const name of shown) setFieldError(form, name, errors[name] || '');
 });
 
 root.addEventListener('focusout', (event) => {

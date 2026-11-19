@@ -11,6 +11,8 @@ import {
 } from '../src/domain.js';
 
 const NOW = new Date(2026, 10, 17, 18, 0, 0).getTime();
+const MEETUP_DATE = '2026-11-17';
+const MEETUP_TIME = '19:30';
 const STARTS_AT = '2026-11-17T19:30';
 
 function inputFor(state, overrides = {}) {
@@ -18,7 +20,8 @@ function inputFor(state, overrides = {}) {
     areaId: state.selectedAreaId,
     name: 'Study session',
     place: 'Block lounge',
-    startsAt: STARTS_AT,
+    date: MEETUP_DATE,
+    time: MEETUP_TIME,
     ...overrides,
   };
 }
@@ -39,7 +42,7 @@ function guestOf(state, party) {
 
 test('validation reports one message per invalid field', () => {
   const empty = validatePartyInput({}, NOW);
-  assert.deepEqual(Object.keys(empty).sort(), ['areaId', 'name', 'place', 'startsAt']);
+  assert.deepEqual(Object.keys(empty).sort(), ['areaId', 'date', 'name', 'place', 'time']);
   for (const message of Object.values(empty)) {
     assert.equal(typeof message, 'string');
     assert.ok(message.length > 0);
@@ -48,17 +51,23 @@ test('validation reports one message per invalid field', () => {
   const seed = createInitialState();
   const valid = inputFor(seed);
 
-  const malformed = validatePartyInput({ ...valid, startsAt: '2026-11-17T25:10' }, NOW);
-  assert.deepEqual(Object.keys(malformed), ['startsAt']);
+  const missingDate = validatePartyInput({ ...valid, date: '' }, NOW);
+  assert.deepEqual(Object.keys(missingDate), ['date']);
 
-  const impossibleDate = validatePartyInput({ ...valid, startsAt: '2026-02-30T10:00' }, NOW);
-  assert.deepEqual(Object.keys(impossibleDate), ['startsAt']);
+  const missingTime = validatePartyInput({ ...valid, time: '' }, NOW);
+  assert.deepEqual(Object.keys(missingTime), ['time']);
 
-  const past = validatePartyInput({ ...valid, startsAt: '2026-11-17T17:59' }, NOW);
-  assert.match(past.startsAt, /future/i);
+  const malformedDate = validatePartyInput({ ...valid, date: '2026-02-30' }, NOW);
+  assert.deepEqual(Object.keys(malformedDate), ['date']);
 
-  const atNow = validatePartyInput({ ...valid, startsAt: '2026-11-17T18:00' }, NOW);
-  assert.match(atNow.startsAt, /future/i);
+  const malformedTime = validatePartyInput({ ...valid, time: '25:10' }, NOW);
+  assert.deepEqual(Object.keys(malformedTime), ['time']);
+
+  const past = validatePartyInput({ ...valid, time: '17:59' }, NOW);
+  assert.match(past.time, /future/i);
+
+  const atNow = validatePartyInput({ ...valid, time: '18:00' }, NOW);
+  assert.match(atNow.time, /future/i);
 
   assert.deepEqual(validatePartyInput(valid, NOW), {});
 });

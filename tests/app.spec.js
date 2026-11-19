@@ -30,13 +30,20 @@ async function scanForViolations(page, label) {
   ).toEqual([]);
 }
 
-function localDateTime(offsetMinutes) {
+function localMeetup(offsetMinutes) {
   const date = new Date(Date.now() + offsetMinutes * 60_000);
   const pad = (value) => String(value).padStart(2, '0');
-  return [
-    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
-    `${pad(date.getHours())}:${pad(date.getMinutes())}`,
-  ].join('T');
+  return {
+    date: `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
+    time: `${pad(date.getHours())}:${pad(date.getMinutes())}`,
+  };
+}
+
+async function fillMeetup(page, offsetMinutes) {
+  const meetup = localMeetup(offsetMinutes);
+  await page.getByLabel('Meetup date').fill(meetup.date);
+  await page.getByLabel('Meetup time').fill(meetup.time);
+  return meetup;
 }
 
 async function openLobby(page) {
@@ -49,7 +56,7 @@ async function createPartyThroughUi(page, { areaId, name, place, startsInMinutes
   await page.getByLabel('Area').selectOption(areaId);
   await page.getByLabel('Party name').fill(name);
   await page.getByLabel('Place to meet').fill(place);
-  await page.getByLabel('Meetup time').fill(localDateTime(startsInMinutes));
+  const meetup = await fillMeetup(page, startsInMinutes);
   await page.getByRole('button', { name: 'Create party' }).click();
 }
 
@@ -108,32 +115,34 @@ test('partySetupValidatesAndCreatesParty', async ({ page }) => {
   await expect(page.getByLabel('Area')).toHaveAttribute('required', '');
   await expect(page.getByLabel('Party name')).toHaveAttribute('required', '');
   await expect(page.getByLabel('Place to meet')).toHaveAttribute('required', '');
+  await expect(page.getByLabel('Meetup date')).toHaveAttribute('required', '');
   await expect(page.getByLabel('Meetup time')).toHaveAttribute('required', '');
   await expect(page.getByLabel('Area').locator('option')).toHaveCount(3);
 
-  const pastTime = localDateTime(-60);
   await page.getByLabel('Area').selectOption('east-library');
   await page.getByLabel('Party name').fill('Library meetup');
   await page.getByLabel('Place to meet').fill('Library steps');
-  await page.getByLabel('Meetup time').fill(pastTime);
+  const pastMeetup = await fillMeetup(page, -60);
   await page.getByRole('button', { name: 'Create party' }).click();
 
   await expect(page.getByText('Choose a meetup time in the future.')).toBeVisible();
   await expect(page.getByLabel('Meetup time')).toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByLabel('Meetup time')).toHaveAttribute(
     'aria-describedby',
-    'setup-starts-at-error',
+    'setup-time-error',
   );
-  await expect(page.locator('#setup-starts-at-error')).toHaveText(
+  await expect(page.locator('#setup-time-error')).toHaveText(
     'Choose a meetup time in the future.',
   );
   await expect(page.getByLabel('Meetup time')).toBeFocused();
+  await expect(page.getByLabel('Meetup date')).not.toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByLabel('Area')).toHaveValue('east-library');
   await expect(page.getByLabel('Party name')).toHaveValue('Library meetup');
   await expect(page.getByLabel('Place to meet')).toHaveValue('Library steps');
-  await expect(page.getByLabel('Meetup time')).toHaveValue(pastTime);
+  await expect(page.getByLabel('Meetup date')).toHaveValue(pastMeetup.date);
+  await expect(page.getByLabel('Meetup time')).toHaveValue(pastMeetup.time);
 
-  await page.getByLabel('Meetup time').fill(localDateTime(60));
+  const meetup = await fillMeetup(page, 60);
   await expect(page.getByText('Choose a meetup time in the future.')).toHaveCount(0);
   await expect(page.getByLabel('Meetup time')).not.toHaveAttribute('aria-invalid', 'true');
   await page.getByRole('button', { name: 'Create party' }).click();
@@ -154,6 +163,35 @@ test('partySetupValidatesAndCreatesParty', async ({ page }) => {
     return created.attendees.find((attendee) => attendee.residentId === created.hostId).status;
   });
   expect(hostStatus).toBe('In');
+
+  await card.getByRole('button', { name: 'View details' }).click();
+  const details = page.locator('dl.party-details');
+  await expect(details.locator('dt')).toHaveText(['Area', 'Place', 'Date', 'Time', 'Status', 'Host']);
+  await expect(details.locator('dd').nth(2)).toHaveText(meetup.date);
+  await expect(details.locator('dd').nth(3)).toHaveText(meetup.time);
+});
+
+test('editingDateClearsStaleTimeError', async ({ page }) => {
+  await openLobby(page);
+  await page.getByRole('button', { name: 'Start a Party' }).click();
+  await page.getByLabel('Area').selectOption('east-library');
+  await page.getByLabel('Party name').fill('Library meetup');
+  await page.getByLabel('Place to meet').fill('Library steps');
+  const pastMeetup = await fillMeetup(page, -60);
+  await page.getByRole('button', { name: 'Create party' }).click();
+  await expect(page.locator('#setup-time-error')).toHaveText(
+    'Choose a meetup time in the future.',
+  );
+
+  // A future date makes the unchanged time part of a future datetime.
+  const futureDate = localMeetup(24 * 60).date;
+  await page.getByLabel('Meetup date').fill(futureDate);
+
+  await expect(page.locator('#setup-time-error')).toHaveText('');
+  await expect(page.getByLabel('Meetup time')).not.toHaveAttribute('aria-invalid');
+  await expect(page.getByLabel('Meetup time')).not.toHaveAttribute('aria-describedby');
+  await expect(page.getByLabel('Meetup time')).toHaveValue(pastMeetup.time);
+  await expect(page.getByLabel('Meetup date')).toHaveValue(futureDate);
 });
 
 test('rendersPartyTextAsText', async ({ page }) => {
@@ -548,7 +586,7 @@ test('@a11y setup with errors', async ({ page }) => {
   await page.getByLabel('Area').selectOption('east-library');
   await page.getByLabel('Party name').fill('Library meetup');
   await page.getByLabel('Place to meet').fill('Library steps');
-  await page.getByLabel('Meetup time').fill(localDateTime(-60));
+  await fillMeetup(page, -60);
   await page.getByRole('button', { name: 'Create party' }).click();
   await expect(page.getByText('Choose a meetup time in the future.')).toBeVisible();
   await scanForViolations(page, 'setup with errors');

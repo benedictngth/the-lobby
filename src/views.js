@@ -41,11 +41,15 @@ function selectArea(state, id, action) {
   return select;
 }
 
-// Keeps the stored datetime-local wall clock as text; never route it through UTC.
+// Keeps the stored wall-clock text; never route it through UTC.
+function wallClockParts(value) {
+  const [date = '', time = ''] = String(value ?? '').split('T');
+  return { date, time };
+}
+
 function formatWallClock(value) {
-  const text = String(value ?? '');
-  const [date, time] = text.split('T');
-  return time ? `${date} at ${time}` : text;
+  const { date, time } = wallClockParts(value);
+  return time ? `${date} at ${time}` : date;
 }
 
 const STATUS_CLASS = {
@@ -248,16 +252,22 @@ export function renderPartySetup(state, ui) {
   placeInput.maxLength = 80;
   placeInput.autocomplete = 'off';
 
+  const dateInput = el('input');
+  dateInput.type = 'date';
+  dateInput.name = 'date';
+  dateInput.required = true;
+
   const timeInput = el('input');
-  timeInput.type = 'datetime-local';
-  timeInput.name = 'startsAt';
+  timeInput.type = 'time';
+  timeInput.name = 'time';
   timeInput.required = true;
 
   form.append(
     labelledField('setup-area', 'Area', selectArea(state, 'setup-area')),
     labelledField('setup-name', 'Party name', nameInput),
     labelledField('setup-place', 'Place to meet', placeInput),
-    labelledField('setup-starts-at', 'Meetup time', timeInput),
+    labelledField('setup-date', 'Meetup date', dateInput),
+    labelledField('setup-time', 'Meetup time', timeInput),
   );
 
   const actions = el('div', 'form-actions');
@@ -289,11 +299,13 @@ export function renderPartyDetails(state, partyId, ui) {
   const host = state.residents.find((resident) => resident.id === party.hostId);
   const resident = state.residents.find((item) => item.id === state.currentResidentId);
   const attendee = party.attendees.find((item) => item.residentId === state.currentResidentId);
+  const meetup = wallClockParts(party.startsAt);
 
   const details = el('dl', 'party-details');
   appendDetail(details, 'Area', areaName);
   appendDetail(details, 'Place', party.place);
-  appendDetail(details, 'Time', formatWallClock(party.startsAt));
+  appendDetail(details, 'Date', meetup.date);
+  appendDetail(details, 'Time', meetup.time);
   appendDetail(details, 'Status', statusBadge(party.status));
   appendDetail(details, 'Host', host?.name ?? 'Unknown resident');
   fragment.append(details);
