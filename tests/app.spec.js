@@ -89,7 +89,9 @@ test('exploreModeShowsAreaParties', async ({ page }) => {
   await expect(card).toBeVisible();
   await expect(card).toContainText('North Residence Block');
   await expect(card).toContainText('Block lounge');
-  await expect(card).toContainText(/\d{4}-\d{2}-\d{2} at \d{2}:\d{2}/);
+  await expect(card.locator('dt')).toHaveText(['Area', 'Place', 'Date', 'Time', 'Status', 'Attendees']);
+  await expect(card.locator('dd').nth(2)).toHaveText(/^\d{4}-\d{2}-\d{2}$/);
+  await expect(card.locator('dd').nth(3)).toHaveText(/^\d{2}:\d{2}$/);
   await expect(card).toContainText('Open');
   await expect(card).toContainText('1 attendee');
   await expect(card).toContainText('Estimate: 8 min commute');

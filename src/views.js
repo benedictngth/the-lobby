@@ -47,11 +47,6 @@ function wallClockParts(value) {
   return { date, time };
 }
 
-function formatWallClock(value) {
-  const { date, time } = wallClockParts(value);
-  return time ? `${date} at ${time}` : date;
-}
-
 const STATUS_CLASS = {
   Open: 'open',
   In: 'in',
@@ -81,9 +76,11 @@ function renderPartyCard(state, party, areaName) {
   title.id = titleId;
 
   const details = el('dl', 'party-details');
+  const meetup = wallClockParts(party.startsAt);
   appendDetail(details, 'Area', areaName);
   appendDetail(details, 'Place', party.place);
-  appendDetail(details, 'Time', formatWallClock(party.startsAt));
+  appendDetail(details, 'Date', meetup.date);
+  appendDetail(details, 'Time', meetup.time);
   appendDetail(details, 'Status', statusBadge(party.status));
   appendDetail(
     details,
